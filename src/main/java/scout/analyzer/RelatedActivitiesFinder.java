@@ -41,7 +41,7 @@ public class RelatedActivitiesFinder {
 
         Report report = new Report();
 
-        Activities activities1 = Activities.get(configuration);
+        Activities activities1 = Activities.get();
         List<scout.analyzer.model.Activity> activities = activities1.activities;
         if (configuration.simplifyVocabulary) {
             Simplifier.Metadata metadata = activities1.simplifyVocabulary(

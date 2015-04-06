@@ -36,7 +36,7 @@ public class Activities {
         return allWords;
     }
 
-    public static Activities get(RelatedActivitiesFinder.Configuration configuration) throws JAXBException, IOException {
+    public static Activities get() throws JAXBException, IOException {
         Activities job = Util.loadXMLResource(Activities.class, "/activity_versions.xml");
         CategoryMappings categoryMappings = Util.loadXMLResource(CategoryMappings.class, "/activity_versions_categories.xml");
         Map<Integer, Activity> activities = new HashMap<>();
