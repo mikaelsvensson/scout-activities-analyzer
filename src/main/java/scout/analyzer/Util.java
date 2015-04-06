@@ -12,6 +12,10 @@ public class Util {
     }
 
     static String join(Object[] strings) {
+        return join(strings, Integer.MAX_VALUE);
+    }
+
+    static String join(Object[] strings, int desiredLength) {
         if (strings != null && strings.length > 0) {
             StringBuilder sb = new StringBuilder();
             for (Object s : strings) {
@@ -19,6 +23,10 @@ public class Util {
                     sb.append(' ');
                 }
                 sb.append(s);
+                if (desiredLength > 0 && sb.length() > desiredLength) {
+                    sb.append("...");
+                    break;
+                }
             }
             return sb.toString();
         } else {

@@ -21,6 +21,6 @@ public class CategoryComparator implements RevisionComparator {
 
     @Override
     public String toString() {
-        return "category";
+        return "labels";
     }
 }

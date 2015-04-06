@@ -10,6 +10,6 @@ public class ParticipantCountComparator extends AbstractRangeComparator {
 
     @Override
     public String toString() {
-        return "participants";
+        return "grpsz";
     }
 }

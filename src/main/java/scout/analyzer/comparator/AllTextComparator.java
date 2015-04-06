@@ -13,6 +13,6 @@ public class AllTextComparator extends AbstractWordsHistogramComparator {
 
     @Override
     public String toString() {
-        return "all text";
+        return "texts";
     }
 }

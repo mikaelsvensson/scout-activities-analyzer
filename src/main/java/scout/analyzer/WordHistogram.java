@@ -13,10 +13,6 @@ public class WordHistogram {
         }
     }
 
-    public Set<String> getWords() {
-        return wordCounts.keySet();
-    }
-
     Map<String, Double> getPercentages() {
         int sum = 0;
         for (Integer count : wordCounts.values()) {
@@ -51,7 +47,7 @@ public class WordHistogram {
                 return o2.getValue().compareTo(o1.getValue());
             }
         });
-        Map<String, Integer> topWords = new LinkedHashMap<>();
+        Map<String, Integer> topWords = new TreeMap<>();
         for (int i = 0; i < Math.min(entries.size(), limit); i++) {
             Map.Entry<String, Integer> entry = entries.get(i);
             topWords.put(entry.getKey(), entry.getValue());

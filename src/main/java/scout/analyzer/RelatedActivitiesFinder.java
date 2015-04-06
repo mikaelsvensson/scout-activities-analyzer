@@ -3,15 +3,14 @@ package scout.analyzer;
 import org.w3c.dom.Document;
 import scout.analyzer.comparator.*;
 import scout.analyzer.model.Activities;
-import scout.analyzer.model.TranslationsAdapter;
 
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBException;
 import javax.xml.bind.Marshaller;
+import javax.xml.bind.Unmarshaller;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlElementWrapper;
 import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.transform.Transformer;
@@ -21,10 +20,12 @@ import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 import javax.xml.transform.stream.StreamSource;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.text.NumberFormat;
 import java.util.*;
+import java.util.regex.Pattern;
 
 public class RelatedActivitiesFinder {
 
@@ -36,16 +37,18 @@ public class RelatedActivitiesFinder {
         NUMBER_FORMAT.setMinimumFractionDigits(2);
     }
 
-    private Marshaller reportMarshaller = null;
-
     private RelatedActivitiesFinder(Configuration configuration) throws JAXBException, IOException, TransformerException, ParserConfigurationException {
-
-        reportMarshaller = JAXBContext.newInstance(Report.class).createMarshaller();
-        reportMarshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, Boolean.TRUE);
 
         Report report = new Report();
 
-        List<scout.analyzer.model.Activity> activities = Activities.get(configuration).activities;
+        Activities activities1 = Activities.get(configuration);
+        List<scout.analyzer.model.Activity> activities = activities1.activities;
+        if (configuration.simplifyVocabulary) {
+            Simplifier.Metadata metadata = activities1.simplifyVocabulary(
+                    configuration.simplifyRules,
+                    configuration.minimumWordGroupSize);
+            transformReport(metadata, "/simplifications.xsl", configuration.simplifierMetadataOutputFile);
+        }
 
         LinkedHashMap<RevisionComparator, Double> comparators = new LinkedHashMap<>();
         comparators.put(new AllTextComparator(), configuration.comparatorFactorAllText);
@@ -57,13 +60,11 @@ public class RelatedActivitiesFinder {
         comparators.put(new ParticipantCountComparator(), configuration.comparatorFactorParticipantCount);
         comparators.put(new TimeComparator(), configuration.comparatorFactorTime);
 
-        report.configuration = configuration;
-
         report.comparatorValuesLabels = createComparatorValuesLabels(comparators.keySet());
 
         Map<String, Double[]> comparisons = new HashMap<>();
 
-        int activityCount = 10;//activities.size();
+        int activityCount = activities.size();
         for (int i = 0; i < activityCount; i++) {
             for (int j = i + 1; j < activityCount; j++) {
                 Double[] compare = new Double[1 + comparators.size()];
@@ -86,7 +87,7 @@ public class RelatedActivitiesFinder {
 
             Report.Activity relation = new Report.Activity(
                     Util.join(revision.name_words()),
-                    Util.join(revision.descr_introduction_words()));
+                    Util.join(revision.all_words(), 150));
             report.activities.add(relation);
 
             TreeMap<Integer, Double[]> similar = new TreeMap<>();
@@ -116,15 +117,32 @@ public class RelatedActivitiesFinder {
                 relation.add(new Report.Activity.Relation(
                         createComparatorValues(entry.getValue()),
                         Util.join(activities.get(entry.getKey()).name_words()),
-                        Util.join(activities.get(entry.getKey()).descr_introduction_words())));
+                        Util.join(activities.get(entry.getKey()).all_words(), 150)));
             }
         }
 
-        reportMarshaller.marshal(report, new File("report.xml"));
-        Transformer transformer = TransformerFactory.newInstance().newTransformer(new StreamSource(getClass().getResourceAsStream("/report.xsl")));
-        Document doc = DocumentBuilderFactory.newInstance().newDocumentBuilder().newDocument();
-        reportMarshaller.marshal(report, doc);
-        transformer.transform(new DOMSource(doc), new StreamResult(new FileOutputStream("report.html")));
+        transformReport(report, "/report.xsl", configuration.outputFile);
+        transformReport(report, "/report-simpletext.xsl", configuration.simpleReportOutputFile);
+    }
+
+    private void transformReport(Object o, String xslResourceName, String outputFileName) throws ParserConfigurationException, JAXBException, TransformerException, FileNotFoundException {
+        Marshaller reportMarshaller = null;
+        reportMarshaller = JAXBContext.newInstance(o.getClass()).createMarshaller();
+        reportMarshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, Boolean.TRUE);
+
+        if (xslResourceName != null) {
+            Transformer transformer = TransformerFactory.newInstance().newTransformer(new StreamSource(getClass().getResourceAsStream(xslResourceName)));
+            Document doc = DocumentBuilderFactory.newInstance().newDocumentBuilder().newDocument();
+            reportMarshaller.marshal(o, doc);
+            transformer.transform(new DOMSource(doc), new StreamResult(new FileOutputStream(outputFileName)));
+        } else {
+            reportMarshaller.marshal(o, new File(outputFileName));
+        }
+    }
+
+    private static Configuration loadConfiguration(String outputFileName) throws ParserConfigurationException, JAXBException, TransformerException, FileNotFoundException {
+        Unmarshaller reportMarshaller = JAXBContext.newInstance(Configuration.class).createUnmarshaller();
+        return (Configuration) reportMarshaller.unmarshal(new File(outputFileName));
     }
 
     private String[] createComparatorValuesLabels(Set<RevisionComparator> comparators) {
@@ -152,7 +170,15 @@ public class RelatedActivitiesFinder {
 
     public static void main(String[] args) {
         try {
-            new RelatedActivitiesFinder(new Configuration(5, true, 1.0, 0.5, 1.0, 2.0, 0.5, 0.1, 0.1, 0.1));
+            if (args != null) {
+                for (String arg : args) {
+                    System.out.println("Calculating related activities using configuration file " + arg);
+                    new RelatedActivitiesFinder(loadConfiguration(arg));
+                }
+            } else {
+                System.out.println("Calculating related activities using default configuration");
+                new RelatedActivitiesFinder(new Configuration());
+            }
         } catch (JAXBException e) {
             e.printStackTrace();
         } catch (IOException e) {
@@ -169,8 +195,7 @@ public class RelatedActivitiesFinder {
         @XmlElement
         int maxRelated = 5;
         @XmlElement
-        public
-        boolean simplifyVocabulary = true;
+        public boolean simplifyVocabulary = true;
         @XmlElement
         double comparatorFactorAllText = 1.0;
         @XmlElement
@@ -187,38 +212,25 @@ public class RelatedActivitiesFinder {
         double comparatorFactorParticipantCount = 0.1;
         @XmlElement
         double comparatorFactorTime = 0.1;
-        @XmlElement(name = "v")
-        @XmlElementWrapper(name = "commonWords")
-        public Set<String> commonWords;
         @XmlElement
-        @XmlJavaTypeAdapter(TranslationsAdapter.class)
-        public Map<String, String> translations;
-
-        public Configuration() {
-        }
-
-        public Configuration(int maxRelated,
-                             boolean simplifyVocabulary,
-                             double comparatorFactorAllText,
-                             double comparatorFactorName,
-                             double comparatorFactorMaterials,
-                             double comparatorFactorIntroduction,
-                             double comparatorFactorCategories,
-                             double comparatorFactorAge,
-                             double comparatorFactorParticipantCount,
-                             double comparatorFactorTime) {
-            this.maxRelated = maxRelated;
-            this.simplifyVocabulary = simplifyVocabulary;
-            this.comparatorFactorAllText = comparatorFactorAllText;
-            this.comparatorFactorName = comparatorFactorName;
-            this.comparatorFactorMaterials = comparatorFactorMaterials;
-            this.comparatorFactorIntroduction = comparatorFactorIntroduction;
-            this.comparatorFactorCategories = comparatorFactorCategories;
-            this.comparatorFactorAge = comparatorFactorAge;
-            this.comparatorFactorParticipantCount = comparatorFactorParticipantCount;
-            this.comparatorFactorTime = comparatorFactorTime;
-        }
-
+        public String outputFile = "report.html";
+        @XmlElement
+        public String simplifierMetadataOutputFile;
+        @XmlElement
+        public String simpleReportOutputFile;
+        @XmlElement(name = "simplifyRule")
+        public Simplifier.SimplifyRule[] simplifyRules = new Simplifier.SimplifyRule[]{
+                new Simplifier.SimplifyRule(1, Pattern.compile("(\\p{IsAlphabetic}{4,})(ing|ingen|ings|ingens|ingar|ingarna)")),
+                new Simplifier.SimplifyRule(1, Pattern.compile("(\\p{IsAlphabetic}{4,})[lt](iga|igt)")),
+                new Simplifier.SimplifyRule(1, Pattern.compile("(\\p{IsAlphabetic}{4,})(nare|nskt|nens|nens)")),
+                new Simplifier.SimplifyRule(1, Pattern.compile("(\\p{IsAlphabetic}{4,})(nar|are|ade|skt|ens|nen)")),
+                new Simplifier.SimplifyRule(1, Pattern.compile("(\\p{IsAlphabetic}{4,})(na|re)")),
+                new Simplifier.SimplifyRule(1, Pattern.compile("(\\p{IsAlphabetic}{4,})[aeis][nrtsk]")),
+                new Simplifier.SimplifyRule(1, Pattern.compile("(\\p{IsAlphabetic}{4,})[aens]")),
+                new Simplifier.SimplifyRule(0, Pattern.compile("(\\p{IsAlphabetic}{4,})"))
+        };
+        @XmlElement
+        public int minimumWordGroupSize = 2;
     }
 
     @XmlRootElement
@@ -265,9 +277,6 @@ public class RelatedActivitiesFinder {
                 }
             }
         }
-
-        @XmlElement
-        public Configuration configuration = new Configuration();
 
         @XmlElement(name = "v")
         @XmlElementWrapper(name = "comparatorValuesLabels")

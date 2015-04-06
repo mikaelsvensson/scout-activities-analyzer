@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<configuration>
+    <maxRelated>10</maxRelated>
+
+    <simplifyVocabulary>true</simplifyVocabulary>
+
+    <simplifyRule matchGroupIndex="1" pattern="(\p{IsAlphabetic}{4,})[nl]in(g|gen|gs|gens|gar|gar|garna)"/>
+    <simplifyRule matchGroupIndex="1" pattern="(\p{IsAlphabetic}{4,})in(g|gen|gs|gens|gar|gar|garna)"/>
+    <simplifyRule matchGroupIndex="1" pattern="(\p{IsAlphabetic}{4,})[lt]ig[at]"/>
+    <simplifyRule matchGroupIndex="1" pattern="(\p{IsAlphabetic}{4,})n(are|skt|ens|ens)"/>
+    <simplifyRule matchGroupIndex="1" pattern="(\p{IsAlphabetic}{4,})(nar|are|ade|skt|ens|ena|nen)"/>
+    <simplifyRule matchGroupIndex="1" pattern="(\p{IsAlphabetic}{4,})(na|re)"/>
+    <simplifyRule matchGroupIndex="1" pattern="(\p{IsAlphabetic}{4,})[aeis][nrtsk]"/>
+    <simplifyRule matchGroupIndex="1" pattern="(\p{IsAlphabetic}{4,})[aens]"/>
+    <simplifyRule matchGroupIndex="0" pattern="(\p{IsAlphabetic}{4,})"/>
+
+    <comparatorFactorAllText>2.0</comparatorFactorAllText>
+    <comparatorFactorName>0.5</comparatorFactorName>
+    <comparatorFactorMaterials>1.0</comparatorFactorMaterials>
+    <comparatorFactorIntroduction>2.0</comparatorFactorIntroduction>
+    <comparatorFactorCategories>0.5</comparatorFactorCategories>
+    <comparatorFactorAge>0.1</comparatorFactorAge>
+    <comparatorFactorParticipantCount>0.1</comparatorFactorParticipantCount>
+    <comparatorFactorTime>0.0</comparatorFactorTime>
+
+    <outputFile>report2.html</outputFile>
+    <simplifierMetadataOutputFile>report2-simplifierMetadata.html</simplifierMetadataOutputFile>
+    <simpleReportOutputFile>report2-simpleReport.txt</simpleReportOutputFile>
+</configuration>

@@ -13,6 +13,6 @@ public class MaterialTextComparator extends AbstractWordsHistogramComparator {
 
     @Override
     public String toString() {
-        return "material";
+        return "equip";
     }
 }
