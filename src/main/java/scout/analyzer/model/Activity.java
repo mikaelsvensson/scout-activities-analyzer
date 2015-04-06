@@ -1,5 +1,7 @@
 package scout.analyzer.model;
 
+import scout.analyzer.Simplifier;
+
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 import java.util.*;
@@ -156,39 +158,28 @@ public class Activity {
         return categories;
     }
 
-    public void simplifyVocabulary(Set<String> commonWords, Map<String, String> translations) {
+    public void simplifyVocabulary(Simplifier simplifier) {
         all_words = null;
 //        for (int i = 0; i < name_words().length; i++) {
-//            name_words[i] = fixVariation(name_words[i], commonWords, translations);
+//            name_words[i] = simplifier.simplify(name_words[i]);
 //        }
         for (int i = 0; i < descr_introduction_words().length; i++) {
-            descr_introduction_words[i] = fixVariation(descr_introduction_words[i], commonWords, translations);
+            descr_introduction_words[i] = simplifier.simplify(descr_introduction_words[i]);
         }
         for (int i = 0; i < descr_safety_words().length; i++) {
-            descr_safety_words[i] = fixVariation(descr_safety_words[i], commonWords, translations);
+            descr_safety_words[i] = simplifier.simplify(descr_safety_words[i]);
         }
         for (int i = 0; i < descr_main_words().length; i++) {
-            descr_main_words[i] = fixVariation(descr_main_words[i], commonWords, translations);
+            descr_main_words[i] = simplifier.simplify(descr_main_words[i]);
         }
         for (int i = 0; i < descr_material_words().length; i++) {
-            descr_material_words[i] = fixVariation(descr_material_words[i], commonWords, translations);
+            descr_material_words[i] = simplifier.simplify(descr_material_words[i]);
         }
         for (int i = 0; i < descr_notes_words().length; i++) {
-            descr_notes_words[i] = fixVariation(descr_notes_words[i], commonWords, translations);
+            descr_notes_words[i] = simplifier.simplify(descr_notes_words[i]);
         }
         for (int i = 0; i < descr_prepare_words().length; i++) {
-            descr_prepare_words[i] = fixVariation(descr_prepare_words[i], commonWords, translations);
+            descr_prepare_words[i] = simplifier.simplify(descr_prepare_words[i]);
         }
     }
-
-    private static String fixVariation(String word, Set<String> commonWords, Map<String, String> translations) {
-        if (commonWords.contains(word)) {
-            return "";
-        } else if (translations.containsKey(word)) {
-            return translations.get(word);
-        } else {
-            return word;
-        }
-    }
-
 }
