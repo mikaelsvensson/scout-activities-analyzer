@@ -3,6 +3,8 @@ package scout.analyzer;
 import org.w3c.dom.Document;
 import scout.analyzer.comparator.*;
 import scout.analyzer.model.Activities;
+import scout.analyzer.model.Activity;
+import scout.analyzer.model.Entity;
 
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBException;
@@ -23,6 +25,9 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.text.MessageFormat;
 import java.text.NumberFormat;
 import java.util.*;
 import java.util.regex.Pattern;
@@ -37,12 +42,12 @@ public class RelatedActivitiesFinder {
         NUMBER_FORMAT.setMinimumFractionDigits(2);
     }
 
+    private static final String RELATED_ACTIVITY_IDS_JSON_PREFIX = "{\"related_activity_ids\":[";
+
     private RelatedActivitiesFinder(Configuration configuration) throws JAXBException, IOException, TransformerException, ParserConfigurationException {
 
-        Report report = new Report();
-
-        System.out.println("Loading data from " + configuration.activitiesURL);
-        Activities activities1 = Activities.get(configuration.activitiesURL);
+        System.out.println("Loading data from " + configuration.httpAllActivitiesURL);
+        Activities activities1 = Activities.get(configuration.httpAllActivitiesURL);
         List<scout.analyzer.model.Activity> activities = activities1.activities;
         if (configuration.simplifyVocabulary) {
             System.out.println("Simplifying vocabulary");
@@ -62,14 +67,32 @@ public class RelatedActivitiesFinder {
         comparators.put(new ParticipantCountComparator(), configuration.comparatorFactorParticipantCount);
         comparators.put(new TimeComparator(), configuration.comparatorFactorTime);
 
-        report.comparatorValuesLabels = createComparatorValuesLabels(comparators.keySet());
 
-        Map<String, Double[]> comparisons = new HashMap<>();
-
-        int activityCount = activities.size();
         System.out.println("Calculating related activities");
-        for (int i = 0; i < activityCount; i++) {
-            for (int j = i + 1; j < activityCount; j++) {
+
+        Map<String, Double[]> comparisons = calculateRelatedActivities(activities, comparators);
+
+        System.out.println("Generating reports");
+
+        Report report = buildReport(activities, comparators, comparisons, configuration.maxRelated);
+
+        transformReport(report, "/report.xsl", configuration.outputFile);
+        transformReport(report, "/report-simpletext.xsl", configuration.simpleReportOutputFile);
+
+        if (configuration.httpSetRelatedActivitiesURL != null && configuration.httpSetRelatedActivitiesURL.length() > 0) {
+            System.out.println("Calling REST API to set each activity's related activities.");
+
+            setRemoteRelatedActivities(
+                    configuration.httpSetRelatedActivitiesURL,
+                    configuration.httpAuthorizationHeader,
+                    report.activities);
+        }
+    }
+
+    private Map<String, Double[]> calculateRelatedActivities(List<Activity> activities, LinkedHashMap<RevisionComparator, Double> comparators) {
+        Map<String, Double[]> comparisons = new HashMap<>();
+        for (int i = 0; i < activities.size(); i++) {
+            for (int j = i + 1; j < activities.size(); j++) {
                 Double[] compare = new Double[1 + comparators.size()];
                 compare[0] = 0.0;
                 int x = 0;
@@ -84,19 +107,23 @@ public class RelatedActivitiesFinder {
                 }
             }
         }
+        return comparisons;
+    }
 
-        System.out.println("Generating reports");
-
-        for (int i = 0; i < activityCount; i++) {
-            scout.analyzer.model.Activity revision = activities.get(i);
+    private Report buildReport(List<Activity> activities, LinkedHashMap<RevisionComparator, Double> comparators, Map<String, Double[]> comparisons, int maxRelated) {
+        Report report = new Report();
+        report.comparatorValuesLabels = createComparatorValuesLabels(comparators.keySet());
+        for (int i = 0; i < activities.size(); i++) {
+            Activity revision = activities.get(i);
 
             Report.Activity relation = new Report.Activity(
                     Util.join(revision.name_words()),
-                    Util.join(revision.all_words(), 150));
+                    Util.join(revision.all_words(), 150),
+                    revision.activity_id);
             report.activities.add(relation);
 
             TreeMap<Integer, Double[]> similar = new TreeMap<>();
-            for (int j = 0; j < activityCount; j++) {
+            for (int j = 0; j < activities.size(); j++) {
                 if (i != j) {
                     String key = getKey(i, j);
                     Double[] compare = comparisons.get(key);
@@ -113,21 +140,56 @@ public class RelatedActivitiesFinder {
                     return o2.getValue()[0].compareTo(o1.getValue()[0]);
                 }
             });
-            for (Map.Entry<Integer, Double[]> entry : similarEntries.subList(0, Math.min(similarEntries.size(), configuration.maxRelated))) {
+            for (Map.Entry<Integer, Double[]> entry : similarEntries.subList(0, Math.min(similarEntries.size(), maxRelated))) {
                 String[] parts = new String[entry.getValue().length];
                 for (int j = 0; j < entry.getValue().length; j++) {
                     Double value = entry.getValue()[j];
                     parts[j] = NUMBER_FORMAT.format(value);
                 }
+                Activity activity = activities.get(entry.getKey());
                 relation.add(new Report.Activity.Relation(
                         createComparatorValues(entry.getValue()),
-                        Util.join(activities.get(entry.getKey()).name_words()),
-                        Util.join(activities.get(entry.getKey()).all_words(), 150)));
+                        Util.join(activity.name_words()),
+                        Util.join(activity.all_words(), 150),
+                        activity.activity_id));
             }
         }
+        return report;
+    }
 
-        transformReport(report, "/report.xsl", configuration.outputFile);
-        transformReport(report, "/report-simpletext.xsl", configuration.simpleReportOutputFile);
+    private void setRemoteRelatedActivities(String httpSetRelatedActivitiesURL, String httpAuthorizationHeader, List<Report.Activity> activities) throws IOException {
+        for (Report.Activity activity : activities) {
+            String jsonBody = getJsonBody(activity);
+            URL url = new URL(MessageFormat.format(httpSetRelatedActivitiesURL, activity.id));
+            System.out.println("Connect to " + url + " and send this: " + jsonBody);
+
+            int responseCode = doHttpPost(url, httpAuthorizationHeader, jsonBody);
+            System.out.println("API response: " + responseCode);
+        }
+    }
+
+    private String getJsonBody(Report.Activity activity) {
+        StringBuilder sb = new StringBuilder(RELATED_ACTIVITY_IDS_JSON_PREFIX);
+        for (Report.Activity.Relation relation : activity.relations) {
+            if (sb.length() > RELATED_ACTIVITY_IDS_JSON_PREFIX.length()) {
+                sb.append(',');
+            }
+            sb.append(relation.id);
+        }
+        sb.append("]}");
+        return sb.toString();
+    }
+
+    private int doHttpPost(URL url, String authorizationHeader, String jsonBody) throws IOException {
+        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+        connection.addRequestProperty("Authorization", authorizationHeader);
+        connection.addRequestProperty("Content-Encoding", "UTF-8");
+        connection.addRequestProperty("Content-Type", "application/json");
+        connection.setRequestMethod("POST");
+        connection.setDoOutput(true);
+        connection.connect();
+        connection.getOutputStream().write(jsonBody.getBytes("UTF-8"));
+        return connection.getResponseCode();
     }
 
     private void transformReport(Object o, String xslResourceName, String outputFileName) throws ParserConfigurationException, JAXBException, TransformerException, FileNotFoundException {
@@ -225,26 +287,30 @@ public class RelatedActivitiesFinder {
         public String simpleReportOutputFile;
         @XmlElement(name = "simplifyRule")
         public Simplifier.SimplifyRule[] simplifyRules = new Simplifier.SimplifyRule[]{
-                new Simplifier.SimplifyRule(1, Pattern.compile("(\\p{IsAlphabetic}{4,})(ing|ingen|ings|ingens|ingar|ingarna)")),
-                new Simplifier.SimplifyRule(1, Pattern.compile("(\\p{IsAlphabetic}{4,})[lt](iga|igt)")),
-                new Simplifier.SimplifyRule(1, Pattern.compile("(\\p{IsAlphabetic}{4,})(nare|nskt|nens|nens)")),
-                new Simplifier.SimplifyRule(1, Pattern.compile("(\\p{IsAlphabetic}{4,})(nar|are|ade|skt|ens|nen)")),
-                new Simplifier.SimplifyRule(1, Pattern.compile("(\\p{IsAlphabetic}{4,})(na|re)")),
-                new Simplifier.SimplifyRule(1, Pattern.compile("(\\p{IsAlphabetic}{4,})[aeis][nrtsk]")),
-                new Simplifier.SimplifyRule(1, Pattern.compile("(\\p{IsAlphabetic}{4,})[aens]")),
-                new Simplifier.SimplifyRule(0, Pattern.compile("(\\p{IsAlphabetic}{4,})"))
+                new Simplifier.SimplifyRule(1, Pattern.compile("([a-zåäöA-ZÅÄÖ]{4,})(ing|ingen|ings|ingens|ingar|ingarna)")),
+                new Simplifier.SimplifyRule(1, Pattern.compile("([a-zåäöA-ZÅÄÖ]{4,})[lt](iga|igt)")),
+                new Simplifier.SimplifyRule(1, Pattern.compile("([a-zåäöA-ZÅÄÖ]{4,})(nare|nskt|nens|nens)")),
+                new Simplifier.SimplifyRule(1, Pattern.compile("([a-zåäöA-ZÅÄÖ]{4,})(nar|are|ade|skt|ens|nen)")),
+                new Simplifier.SimplifyRule(1, Pattern.compile("([a-zåäöA-ZÅÄÖ]{4,})(na|re)")),
+                new Simplifier.SimplifyRule(1, Pattern.compile("([a-zåäöA-ZÅÄÖ]{4,})[aeis][nrtsk]")),
+                new Simplifier.SimplifyRule(1, Pattern.compile("([a-zåäöA-ZÅÄÖ]{4,})[aens]")),
+                new Simplifier.SimplifyRule(0, Pattern.compile("([a-zåäöA-ZÅÄÖ]{4,})"))
         };
         @XmlElement
         public int minimumWordGroupSize = 2;
         @XmlElement
-        public String activitiesURL;
+        public String httpAllActivitiesURL;
+        @XmlElement
+        public String httpSetRelatedActivitiesURL;
+        @XmlElement
+        public String httpAuthorizationHeader;
     }
 
     @XmlRootElement
     public static class Report {
 
         @XmlRootElement
-        private static class Activity {
+        private static class Activity extends Entity {
             @XmlElement
             String name;
             @XmlElement
@@ -255,9 +321,10 @@ public class RelatedActivitiesFinder {
             private Activity() {
             }
 
-            public Activity(String name, String description) {
+            public Activity(String name, String description, int id) {
                 this.name = name;
                 this.description = description;
+                this.id = id;
             }
 
             public void add(Relation relation) {
@@ -265,7 +332,7 @@ public class RelatedActivitiesFinder {
             }
 
             @XmlRootElement
-            private static class Relation {
+            private static class Relation extends Entity {
                 @XmlElement
                 String name;
                 @XmlElement
@@ -277,10 +344,11 @@ public class RelatedActivitiesFinder {
                 private Relation() {
                 }
 
-                public Relation(String[] comparatorValues, String name, String description) {
+                public Relation(String[] comparatorValues, String name, String description, int id) {
                     this.comparatorValues = comparatorValues;
                     this.name = name;
                     this.description = description;
+                    this.id = id;
                 }
             }
         }

@@ -4,7 +4,7 @@ import javax.xml.bind.annotation.XmlElement;
 
 public class Entity {
     @XmlElement
-    protected int id;
+    public int id;
 
     @Override
     public boolean equals(Object o) {
