@@ -1,7 +1,6 @@
 package scout.analyzer.model;
 
 
-import scout.analyzer.RelatedActivitiesFinder;
 import scout.analyzer.Simplifier;
 import scout.analyzer.Util;
 
@@ -11,10 +10,10 @@ import javax.xml.bind.annotation.XmlRootElement;
 import java.io.IOException;
 import java.util.*;
 
-@XmlRootElement(name = "data")
+@XmlRootElement(name = "activity")
 public class Activities {
 
-    @XmlElement(name = "row")
+    @XmlElement(name = "activity")
     public List<Activity> activities = new ArrayList<>();
 
     public Simplifier.Metadata simplifyVocabulary(Simplifier.SimplifyRule[] simplifyRules, int minimumWordGroupSize) throws IOException, JAXBException {
@@ -36,17 +35,17 @@ public class Activities {
         return allWords;
     }
 
-    public static Activities get() throws JAXBException, IOException {
-        Activities job = Util.loadXMLResource(Activities.class, "/activity_versions.xml");
-        CategoryMappings categoryMappings = Util.loadXMLResource(CategoryMappings.class, "/activity_versions_categories.xml");
-        Map<Integer, Activity> activities = new HashMap<>();
-        for (Activity activity : job.activities) {
-            activity.setCategories(categoryMappings.mappings);
-        }
-        for (Activity activity : job.activities) {
-            activities.put(activity.activity_id, activity);
-        }
-        job.activities = new ArrayList<>(activities.values());
+    public static Activities get(String activitiesURL) throws JAXBException, IOException {
+        Activities job = Util.loadXMLResource(Activities.class, activitiesURL);
+//        CategoryMappings categoryMappings = Util.loadXMLResource(CategoryMappings.class, "/activity_versions_categories.xml");
+//        Map<Integer, Activity> activities = new HashMap<>();
+//        for (Activity activity : job.activities) {
+//            activity.setCategories(categoryMappings.mappings);
+//        }
+//        for (Activity activity : job.activities) {
+//            activities.put(activity.activity_id, activity);
+//        }
+//        job.activities = new ArrayList<>(activities.values());
 
         return job;
     }

@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <configuration>
+    <activitiesURL>http://127.0.0.1:3000/api/v1/activities.xml?time_1=0&amp;time_2=0</activitiesURL>
     <maxRelated>10</maxRelated>
 
     <simplifyVocabulary>true</simplifyVocabulary>

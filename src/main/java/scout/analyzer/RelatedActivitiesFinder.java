@@ -41,9 +41,11 @@ public class RelatedActivitiesFinder {
 
         Report report = new Report();
 
-        Activities activities1 = Activities.get();
+        System.out.println("Loading data from " + configuration.activitiesURL);
+        Activities activities1 = Activities.get(configuration.activitiesURL);
         List<scout.analyzer.model.Activity> activities = activities1.activities;
         if (configuration.simplifyVocabulary) {
+            System.out.println("Simplifying vocabulary");
             Simplifier.Metadata metadata = activities1.simplifyVocabulary(
                     configuration.simplifyRules,
                     configuration.minimumWordGroupSize);
@@ -65,6 +67,7 @@ public class RelatedActivitiesFinder {
         Map<String, Double[]> comparisons = new HashMap<>();
 
         int activityCount = activities.size();
+        System.out.println("Calculating related activities");
         for (int i = 0; i < activityCount; i++) {
             for (int j = i + 1; j < activityCount; j++) {
                 Double[] compare = new Double[1 + comparators.size()];
@@ -81,6 +84,8 @@ public class RelatedActivitiesFinder {
                 }
             }
         }
+
+        System.out.println("Generating reports");
 
         for (int i = 0; i < activityCount; i++) {
             scout.analyzer.model.Activity revision = activities.get(i);
@@ -231,6 +236,8 @@ public class RelatedActivitiesFinder {
         };
         @XmlElement
         public int minimumWordGroupSize = 2;
+        @XmlElement
+        public String activitiesURL;
     }
 
     @XmlRootElement

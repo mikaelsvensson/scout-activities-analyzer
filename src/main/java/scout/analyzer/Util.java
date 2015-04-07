@@ -3,12 +3,19 @@ package scout.analyzer;
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBException;
 import javax.xml.bind.Unmarshaller;
+import java.io.File;
+import java.net.MalformedURLException;
+import java.net.URL;
 
 public class Util {
-    public static <C> C loadXMLResource(Class<C> cls, String resourceName) throws JAXBException {
+    public static <C> C loadXMLResource(Class<C> cls, String resourceName) throws JAXBException, MalformedURLException {
         JAXBContext ctx1 = JAXBContext.newInstance(cls);
         Unmarshaller unmarshaller1 = ctx1.createUnmarshaller();
-        return (C) unmarshaller1.unmarshal(Util.class.getResourceAsStream(resourceName));
+        if (new File(resourceName).isFile()) {
+            return (C) unmarshaller1.unmarshal(new File(resourceName));
+        } else {
+            return (C) unmarshaller1.unmarshal(new URL(resourceName));
+        }
     }
 
     static String join(Object[] strings) {

@@ -3,13 +3,12 @@ package scout.analyzer.model;
 import scout.analyzer.Simplifier;
 
 import javax.xml.bind.annotation.XmlElement;
+import javax.xml.bind.annotation.XmlElementWrapper;
 import javax.xml.bind.annotation.XmlRootElement;
+import javax.xml.bind.annotation.XmlType;
 import java.util.*;
 
-@XmlRootElement(name = "row")
-public class Activity {
-    @XmlElement
-    private int id;
+public class Activity extends Entity {
     @XmlElement
     public int status;
     @XmlElement
@@ -41,10 +40,6 @@ public class Activity {
     @XmlElement
     public boolean featured;
     @XmlElement
-    public String created_at;
-    @XmlElement
-    public String updated_at;
-    @XmlElement
     public int activity_id;
 
     private String[] name_words;
@@ -55,13 +50,16 @@ public class Activity {
     private String[] descr_notes_words;
     private String[] descr_prepare_words;
     private String[] all_words;
-    private Collection<Integer> categories;
+
+    @XmlElement(name = "category")
+    @XmlElementWrapper(name = "categories")
+    private Collection<Entity> categories;
 
     private String[] getWordSequence(String text) {
         if (text != null) {
             return text.toLowerCase().split("[^\\p{IsAlphabetic}]+");
         } else {
-            return null;
+            return new String[0];
         }
     }
 
@@ -133,28 +131,23 @@ public class Activity {
                     descr_prepare_words(),
                     descr_safety_words()};
             for (String[] strings : allStrings) {
-                count += strings.length;
+                if (strings != null) {
+                    count += strings.length;
+                }
             }
             all_words = new String[count];
             int pos = 0;
             for (String[] strings : allStrings) {
-                System.arraycopy(strings, 0, all_words, pos, strings.length);
-                pos += strings.length;
+                if (strings != null) {
+                    System.arraycopy(strings, 0, all_words, pos, strings.length);
+                    pos += strings.length;
+                }
             }
         }
         return all_words;
     }
 
-    public void setCategories(List<CategoryMapping> categories) {
-        this.categories = new ArrayList<>();
-        for (CategoryMapping category : categories) {
-            if (category.activity_version_id == id) {
-                this.categories.add(category.category_id);
-            }
-        }
-    }
-
-    public Collection<Integer> getCategories() {
+    public Collection<Entity> getCategories() {
         return categories;
     }
 
