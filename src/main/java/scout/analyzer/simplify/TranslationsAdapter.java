@@ -1,4 +1,4 @@
-package scout.analyzer;
+package scout.analyzer.simplify;
 
 import javax.xml.bind.annotation.XmlAttribute;
 import javax.xml.bind.annotation.XmlElement;

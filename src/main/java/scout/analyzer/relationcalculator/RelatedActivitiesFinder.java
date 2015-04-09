@@ -1,17 +1,18 @@
-package scout.analyzer;
+package scout.analyzer.relationcalculator;
 
 import org.w3c.dom.Document;
+import scout.analyzer.Util;
 import scout.analyzer.comparator.*;
 import scout.analyzer.model.Activities;
 import scout.analyzer.model.Activity;
-import scout.analyzer.model.Entity;
+import scout.analyzer.simplify.Metadata;
+import scout.analyzer.simplify.SimplifyRule;
 
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBException;
 import javax.xml.bind.Marshaller;
 import javax.xml.bind.Unmarshaller;
 import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlElementWrapper;
 import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
@@ -51,7 +52,7 @@ public class RelatedActivitiesFinder {
         List<scout.analyzer.model.Activity> activities = activities1.activities;
         if (configuration.simplifyVocabulary) {
             System.out.println("Simplifying vocabulary");
-            Simplifier.Metadata metadata = activities1.simplifyVocabulary(
+            Metadata metadata = activities1.simplifyVocabulary(
                     configuration.simplifyRules,
                     configuration.minimumWordGroupSize);
             transformReport(metadata, "/simplifications.xsl", configuration.simplifierMetadataOutputFile);
@@ -286,15 +287,15 @@ public class RelatedActivitiesFinder {
         @XmlElement
         public String simpleReportOutputFile;
         @XmlElement(name = "simplifyRule")
-        public Simplifier.SimplifyRule[] simplifyRules = new Simplifier.SimplifyRule[]{
-                new Simplifier.SimplifyRule(1, Pattern.compile("([a-zåäöA-ZÅÄÖ]{4,})(ing|ingen|ings|ingens|ingar|ingarna)")),
-                new Simplifier.SimplifyRule(1, Pattern.compile("([a-zåäöA-ZÅÄÖ]{4,})[lt](iga|igt)")),
-                new Simplifier.SimplifyRule(1, Pattern.compile("([a-zåäöA-ZÅÄÖ]{4,})(nare|nskt|nens|nens)")),
-                new Simplifier.SimplifyRule(1, Pattern.compile("([a-zåäöA-ZÅÄÖ]{4,})(nar|are|ade|skt|ens|nen)")),
-                new Simplifier.SimplifyRule(1, Pattern.compile("([a-zåäöA-ZÅÄÖ]{4,})(na|re)")),
-                new Simplifier.SimplifyRule(1, Pattern.compile("([a-zåäöA-ZÅÄÖ]{4,})[aeis][nrtsk]")),
-                new Simplifier.SimplifyRule(1, Pattern.compile("([a-zåäöA-ZÅÄÖ]{4,})[aens]")),
-                new Simplifier.SimplifyRule(0, Pattern.compile("([a-zåäöA-ZÅÄÖ]{4,})"))
+        public SimplifyRule[] simplifyRules = new SimplifyRule[]{
+                new SimplifyRule(1, Pattern.compile("([a-zåäöA-ZÅÄÖ]{4,})(ing|ingen|ings|ingens|ingar|ingarna)")),
+                new SimplifyRule(1, Pattern.compile("([a-zåäöA-ZÅÄÖ]{4,})[lt](iga|igt)")),
+                new SimplifyRule(1, Pattern.compile("([a-zåäöA-ZÅÄÖ]{4,})(nare|nskt|nens|nens)")),
+                new SimplifyRule(1, Pattern.compile("([a-zåäöA-ZÅÄÖ]{4,})(nar|are|ade|skt|ens|nen)")),
+                new SimplifyRule(1, Pattern.compile("([a-zåäöA-ZÅÄÖ]{4,})(na|re)")),
+                new SimplifyRule(1, Pattern.compile("([a-zåäöA-ZÅÄÖ]{4,})[aeis][nrtsk]")),
+                new SimplifyRule(1, Pattern.compile("([a-zåäöA-ZÅÄÖ]{4,})[aens]")),
+                new SimplifyRule(0, Pattern.compile("([a-zåäöA-ZÅÄÖ]{4,})"))
         };
         @XmlElement
         public int minimumWordGroupSize = 2;
@@ -304,62 +305,6 @@ public class RelatedActivitiesFinder {
         public String httpSetRelatedActivitiesURL;
         @XmlElement
         public String httpAuthorizationHeader;
-    }
-
-    @XmlRootElement
-    public static class Report {
-
-        @XmlRootElement
-        private static class Activity extends Entity {
-            @XmlElement
-            String name;
-            @XmlElement
-            String description;
-            @XmlElement
-            List<Relation> relations = new ArrayList<>();
-
-            private Activity() {
-            }
-
-            public Activity(String name, String description, int id) {
-                this.name = name;
-                this.description = description;
-                this.id = id;
-            }
-
-            public void add(Relation relation) {
-                relations.add(relation);
-            }
-
-            @XmlRootElement
-            private static class Relation extends Entity {
-                @XmlElement
-                String name;
-                @XmlElement
-                String description;
-                @XmlElement(name = "v")
-                @XmlElementWrapper(name = "comparatorValues")
-                String[] comparatorValues;
-
-                private Relation() {
-                }
-
-                public Relation(String[] comparatorValues, String name, String description, int id) {
-                    this.comparatorValues = comparatorValues;
-                    this.name = name;
-                    this.description = description;
-                    this.id = id;
-                }
-            }
-        }
-
-        @XmlElement(name = "v")
-        @XmlElementWrapper(name = "comparatorValuesLabels")
-        String[] comparatorValuesLabels;
-
-        @XmlElement
-        List<Activity> activities = new ArrayList<>();
-
     }
 
 }

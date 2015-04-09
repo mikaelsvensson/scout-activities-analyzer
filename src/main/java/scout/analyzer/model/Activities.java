@@ -1,8 +1,10 @@
 package scout.analyzer.model;
 
 
-import scout.analyzer.Simplifier;
+import scout.analyzer.simplify.Metadata;
+import scout.analyzer.simplify.Simplifier;
 import scout.analyzer.Util;
+import scout.analyzer.simplify.SimplifyRule;
 
 import javax.xml.bind.JAXBException;
 import javax.xml.bind.annotation.XmlElement;
@@ -16,7 +18,7 @@ public class Activities {
     @XmlElement(name = "activity")
     public List<Activity> activities = new ArrayList<>();
 
-    public Simplifier.Metadata simplifyVocabulary(Simplifier.SimplifyRule[] simplifyRules, int minimumWordGroupSize) throws IOException, JAXBException {
+    public Metadata simplifyVocabulary(SimplifyRule[] simplifyRules, int minimumWordGroupSize) throws IOException, JAXBException {
         Simplifier simplifier = new Simplifier(getAllWords(), simplifyRules, minimumWordGroupSize);
 
         for (Activity activity : activities) {

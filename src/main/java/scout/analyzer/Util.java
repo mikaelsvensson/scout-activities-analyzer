@@ -18,11 +18,11 @@ public class Util {
         }
     }
 
-    static String join(Object[] strings) {
+    public static String join(Object[] strings) {
         return join(strings, Integer.MAX_VALUE);
     }
 
-    static String join(Object[] strings, int desiredLength) {
+    public static String join(Object[] strings, int desiredLength) {
         if (strings != null && strings.length > 0) {
             StringBuilder sb = new StringBuilder();
             for (Object s : strings) {

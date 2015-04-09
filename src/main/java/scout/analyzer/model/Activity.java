@@ -1,11 +1,9 @@
 package scout.analyzer.model;
 
-import scout.analyzer.Simplifier;
+import scout.analyzer.simplify.Simplifier;
 
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlElementWrapper;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlType;
 import java.util.*;
 
 public class Activity extends Entity {

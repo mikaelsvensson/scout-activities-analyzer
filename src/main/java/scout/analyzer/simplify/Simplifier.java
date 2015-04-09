@@ -1,41 +1,14 @@
-package scout.analyzer;
+package scout.analyzer.simplify;
+
+import scout.analyzer.WordHistogram;
 
 import javax.xml.bind.JAXBException;
-import javax.xml.bind.annotation.XmlAttribute;
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlElementWrapper;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 import java.io.IOException;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class Simplifier {
-
-    @XmlRootElement
-    public static class SimplifyRule {
-        @XmlAttribute(name = "pattern")
-        String patternExpr;
-        Pattern pattern;
-        @XmlAttribute
-        int matchGroupIndex;
-
-        public SimplifyRule() {
-        }
-
-        public SimplifyRule(int matchGroupIndex, Pattern pattern) {
-            this.matchGroupIndex = matchGroupIndex;
-            this.pattern = pattern;
-        }
-
-        public Pattern getPattern() {
-            if (pattern == null) {
-                pattern = Pattern.compile(patternExpr);
-            }
-            return pattern;
-        }
-    }
 
     private Metadata metadata = new Metadata();
 
@@ -117,13 +90,4 @@ public class Simplifier {
         return metadata;
     }
 
-    @XmlRootElement
-    public static class Metadata {
-        @XmlElement(name = "v")
-        @XmlElementWrapper(name = "commonWords")
-        public Set<String> commonWords;
-        @XmlElement
-        @XmlJavaTypeAdapter(TranslationsAdapter.class)
-        public Map<String, String> translations;
-    }
 }
